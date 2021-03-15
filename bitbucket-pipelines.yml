@@ -15,5 +15,6 @@ pipelines:
           caches:
             - gradle
           script:
+            - mkdir -p /tudidata/dev-logs
             - gradle bootWar
             - scp build/libs/yb.war tuditaiwan@test.tudihis.cn:/data/wwwroot/default/yb.war
