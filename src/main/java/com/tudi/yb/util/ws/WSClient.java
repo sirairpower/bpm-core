@@ -1,9 +1,11 @@
-package com.tudi.yb.util;
+package com.tudi.yb.util.ws;
 
 import com.google.gson.Gson;
-import com.tudi.yb.model.bo.YBMessage;
+import com.tudi.yb.model.bo.TZSWNMessage;
+import com.tudi.yb.model.bo.YBMessageInterface;
 import java.net.URI;
 import java.util.Scanner;
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -15,13 +17,60 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @Component
+@Data
 public class WSClient {
+
   final private Logger logger = LoggerFactory.getLogger(this.getClass());
 
+  public void sendMsg(TextWebSocketHandler textWebSocketHandler, YBMessageInterface ybMessage,URI uri) {
+    try {
+      WebSocketClient webSocketClient = new StandardWebSocketClient();
+      WebSocketSession webSocketSession = webSocketClient.doHandshake(textWebSocketHandler,new WebSocketHttpHeaders(), uri).get();
+      TextMessage message = new TextMessage(new Gson().toJson(ybMessage));
+      webSocketSession.sendMessage(message);
+      logger.info("sent message - " + message.getPayload());
 
+    } catch (Exception e) {
+      logger.error("Exception while accessing websockets", e);
+    }
 
+  }
 
-  public static void main(String... args) throws Exception{
+  public void sendMsg() {
+    try {
+      WebSocketClient webSocketClient = new StandardWebSocketClient();
+
+      WebSocketSession webSocketSession = webSocketClient.doHandshake(new TextWebSocketHandler() {
+        @Override
+        public void handleTextMessage(WebSocketSession session, TextMessage message) {
+          logger.info("received message - " + message.getPayload());
+        }
+
+        @Override
+        public void afterConnectionEstablished(WebSocketSession session) {
+          logger.info("established connection - " + session);
+        }
+      }, new WebSocketHttpHeaders(), URI.create("ws://127.0.0.1:5487")).get();
+      TZSWNMessage TZSWNMessage = new TZSWNMessage();
+      TZSWNMessage.setType("TZSWN");
+      TZSWNMessage.setAction("apply");
+      TZSWNMessage.setInstCode("7023");
+      TZSWNMessage.setTransCode("YB001");
+      TZSWNMessage.setData1("{\\\"rdzlsh\\\":\\\"20210322\\\",\\\"czyzh\\\":\\\"\\\",\\\"dzpz\\\":\\\"\\\"}");
+      TZSWNMessage.setData2("");
+      TZSWNMessage.setNo(4627477);
+      TextMessage message = new TextMessage(new Gson().toJson(TZSWNMessage));
+      webSocketSession.sendMessage(message);
+
+      logger.info("sent message - " + message.getPayload());
+
+    } catch (Exception e) {
+      logger.error("Exception while accessing websockets", e);
+    }
+
+  }
+
+  public static void main(String... args) throws Exception {
     WSClient wsClient = new WSClient();
 
     try {
@@ -38,15 +87,15 @@ public class WSClient {
           wsClient.logger.info("established connection - " + session);
         }
       }, new WebSocketHttpHeaders(), URI.create("ws://127.0.0.1:5487")).get();
-      YBMessage ybMessage = new YBMessage();
-      ybMessage.setType("TZSWN");
-      ybMessage.setAction("apply");
-      ybMessage.setInstCode("7023");
-      ybMessage.setTransCode("YB001");
-      ybMessage.setData1("{\\\"rdzlsh\\\":\\\"20210322\\\",\\\"czyzh\\\":\\\"\\\",\\\"dzpz\\\":\\\"\\\"}");
-      ybMessage.setData2("");
-      ybMessage.setNo(4627477);
-      TextMessage message = new TextMessage(new Gson().toJson(ybMessage));
+      TZSWNMessage TZSWNMessage = new TZSWNMessage();
+      TZSWNMessage.setType("TZSWN");
+      TZSWNMessage.setAction("apply");
+      TZSWNMessage.setInstCode("7023");
+      TZSWNMessage.setTransCode("YB001");
+      TZSWNMessage.setData1("{\\\"rdzlsh\\\":\\\"20210322\\\",\\\"czyzh\\\":\\\"\\\",\\\"dzpz\\\":\\\"\\\"}");
+      TZSWNMessage.setData2("");
+      TZSWNMessage.setNo(4627477);
+      TextMessage message = new TextMessage(new Gson().toJson(TZSWNMessage));
       webSocketSession.sendMessage(message);
 
       wsClient.logger.info("sent message - " + message.getPayload());
