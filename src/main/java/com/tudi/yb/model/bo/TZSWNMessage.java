@@ -7,12 +7,12 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class YBMessage {
+public class TZSWNMessage implements YBMessageInterface{
   private String type;
   private String action;
   private String instCode;
   private String transCode;
-  private String data1;
+  private Object data1;
   private String data2;
   private Integer no;
 }
