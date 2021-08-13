@@ -1,13 +1,14 @@
-package com.tudi.yb;
+package com.bpm;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class YbApplication {
+public class BPMApplication {
 
   public static void main(String[] args) {
-    SpringApplication.run(YbApplication.class, args);
+    System.setProperty("webdriver.chrome.driver", "/opt/WebDriver/bin/chromedriver");
+    SpringApplication.run(BPMApplication.class, args);
   }
 
 }

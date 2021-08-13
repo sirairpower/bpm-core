@@ -1,4 +1,4 @@
-package com.tudi.yb.conf;
+package com.bpm.conf;
 
 import java.util.Collections;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +14,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @Configuration
 @EnableSwagger2
 public class SwaggerConfig {
+
   @Bean
   public Docket apiDocket() {
     return new Docket(DocumentationType.SWAGGER_2).select()

@@ -1,7 +1,7 @@
 <configuration>
 
   <property name="LOG_PATTERN" value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ} %p %m%n"/>
-  <property name="APP_LOG_ROOT" value="/Users/howardchang/bpmdata/dev-logs/"/>
+  <property name="APP_LOG_ROOT" value="/Users/howardchang/bpmdata/test-logs/"/>
 
   <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
@@ -67,26 +67,6 @@
       <maxFileSize>10MB</maxFileSize>
     </triggeringPolicy>
   </appender>
-
-  <logger name="com.tudi.yb" level="DEBUG">
-    <appender-ref ref="applicationLog"/>
-
-  </logger>
-
-  <logger name="com.tudi.yb.aop" level="INFO">
-    <appender-ref ref="aopLog"/>
-
-  </logger>
-
-  <logger name="org.springframework" level="INFO">
-    <appender-ref ref="springLog"/>
-
-  </logger>
-
-  <logger name="org.hibernate" level="INFO">
-    <appender-ref ref="hibernateLog"/>
-
-  </logger>
 
   <root level="info">
     <appender-ref ref="console"/>
