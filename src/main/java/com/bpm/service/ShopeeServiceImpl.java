@@ -57,6 +57,11 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
     }
   }
 
+  @Override
+  public void loadFileToLocal() {
+
+  }
+
   private Map<String, Set<ShopeeProductInfo>> testShopee(WebDriver driver) {
     currentCategoryName = "";
     allProds = null;

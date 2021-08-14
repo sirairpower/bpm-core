@@ -68,14 +68,12 @@
     </triggeringPolicy>
   </appender>
 
-  <logger name="com.tudi.yb" level="DEBUG">
+  <logger name="com.bpm" level="DEBUG">
     <appender-ref ref="applicationLog"/>
-
   </logger>
 
-  <logger name="com.tudi.yb.aop" level="INFO">
+  <logger name="com.bpm.aop" level="INFO">
     <appender-ref ref="aopLog"/>
-
   </logger>
 
   <logger name="org.springframework" level="INFO">
