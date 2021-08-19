@@ -43,7 +43,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
     driver.manage().window().maximize();
     try {
       logger.info("Collect data from shopee banbi.");
-      Map<String, Set<ShopeeProductInfo>> allCategoryProdInfo = testShopee(driver);
+      Map<String, Set<ShopeeProductInfo>> allCategoryProdInfo = getAllCategoryProdInfo(driver);
       logger.info("Write data to db.");
       allCategoryProdInfo.forEach((k, v) -> {
         logger.info("category:{},size:{}", k, v.size());
@@ -62,7 +62,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
   }
 
-  private Map<String, Set<ShopeeProductInfo>> testShopee(WebDriver driver) {
+  private Map<String, Set<ShopeeProductInfo>> getAllCategoryProdInfo(WebDriver driver) {
     currentCategoryName = "";
     allProds = null;
     now = null;
@@ -111,7 +111,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
       runAllProd(driver, productInfos);
       //if has next , click it.
       WebElement next = driver.findElement(By.className("shopee-mini-page-controller__next-btn"));
-      logger.info("IsNextAvailable:{}", next.isEnabled());
+      logger.debug("IsNextAvailable:{}", next.isEnabled());
       if (next.isEnabled()) {
         next.click();
       }
@@ -165,9 +165,10 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
     //final String subject = StringUtils.trim(driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div/div[1]/span")).getText());
     productInfo.setSubject(subject);
-    makeVariantOfProd(driver, productInfo, selectionDiv);
+    List<String> prodImgs = getProdImgs(driver, productInfo);
+    makeVariantOfProd(driver, productInfo, selectionDiv, prodImgs);
+    productInfo.setImgLinks(StringUtils.join(prodImgs, ","));
 //    productInfo.setInventoryQuantity();
-    setImages(driver, productInfo);
     final String desc = driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[3]/div[2]/div[1]/div[1]/div[2]/div[2]/div/span")).getText();
     productInfo.setDesc(desc);
     productInfo.setCreateDate(now);
@@ -179,35 +180,47 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
     return productInfo;
   }
 
-  private void setImages(WebDriver driver, ShopeeProductInfo productInfo) {
+  private List<String> getProdImgs(WebDriver driver, ShopeeProductInfo productInfo) {
     List<WebElement> miniPhotosDiv = driver.findElements(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[2]/div"));
     Actions builder = new Actions(driver);
     List<String> imgs = new ArrayList<>();
     miniPhotosDiv.forEach(ph -> {
       builder.moveToElement(ph).perform();
-      WebElement photoDiv = new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div")));
-//      WebElement photoDiv = driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div"));
-      String backgroundImage = photoDiv.getCssValue("background-image");
+      String backgroundImage = getBackgroundImgOfLeftSide(driver, ph);
       if (StringUtils.isNotBlank(backgroundImage)) {
-        backgroundImage = StringUtils.remove(backgroundImage, "url(\"");
-        backgroundImage = StringUtils.remove(backgroundImage, "\")");
         imgs.add(backgroundImage);
-      } else {
-        logger.warn("Miss backgroundImage:{}", ph.getText());
       }
     });
-    productInfo.setImgLinks(StringUtils.join(imgs, ","));
+    return imgs;
   }
 
-  private void makeVariantOfProd(WebDriver driver, ShopeeProductInfo productInfo, WebElement selectionDiv) {
+  private String getBackgroundImgOfLeftSide(WebDriver driver, WebElement ph) {
+    WebElement photoDiv = new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div")));
+    String backgroundImage = photoDiv.getCssValue("background-image");
+    if (StringUtils.isNotBlank(backgroundImage)) {
+      backgroundImage = StringUtils.remove(backgroundImage, "url(\"");
+      backgroundImage = StringUtils.remove(backgroundImage, "\")");
+    } else {
+      logger.warn("Miss backgroundImage:{}", ph.getText());
+    }
+    return backgroundImage;
+  }
+
+  private void makeVariantOfProd(WebDriver driver, ShopeeProductInfo productInfo, WebElement selectionDiv, List<String> prodImgs) {
     WebElement choiceArea = null;
     List<WebElement> choiceBtns = selectionDiv.findElements(By.className("product-variation"));
 
     logger.info("choiceBtns.size:{}", choiceBtns.size());
     if (choiceBtns.size() > 1) {
       productInfo.setVariantProdTrue(true);
+      Actions hover = new Actions(driver);
       choiceBtns.forEach(btn -> {
         ShopeeVariantProd variantProd = new ShopeeVariantProd();
+        hover.moveToElement(btn).build().perform();
+        String backgroundImage = getBackgroundImgOfLeftSide(driver, btn);
+        if (StringUtils.isNotBlank(backgroundImage)) {
+          //TODO
+        }
         if (StringUtils.contains(btn.getAttribute("class"), "product-variation--disabled")) {
           variantProd.setDesc(btn.getText());
         } else {

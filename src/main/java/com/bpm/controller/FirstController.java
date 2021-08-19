@@ -50,12 +50,59 @@ public class FirstController {
 
   public static void main(String... args) throws Exception {
     Logger logger = LoggerFactory.getLogger(FirstController.class);
+    System.setProperty("webdriver.chrome.driver", "/opt/WebDriver/bin/chromedriver");
+    WebDriver driver = new ChromeDriver();
 //    getPhotos(logger, driver);
 //    getSubject(logger);
-    String link = "url(\"https://cf.shopee.tw/file/dcce61d0a75bce68143a3f614fa5d06b\")";
-    link = StringUtils.remove(link, "url(\"");
-    link = StringUtils.remove(link, "\")");
-    logger.info("plant link : {}", link);
+    try {
+      driver.manage().window().maximize();
+      driver.get("https://shopee.tw/%E5%85%AC%E5%8F%B8%E8%B2%A8Kneipp%E5%85%8B%E5%A5%88%E5%9C%83-%E8%8A%B3%E9%A6%99%E7%B2%BE%E6%B2%B9%E5%8E%9F%E5%A7%8B%E9%B9%BD%E6%B3%89%E6%B5%B4%E9%B9%BD-500g(%E5%B0%A4%E5%8A%A0%E5%88%A9.%E8%96%B0%E8%A1%A3%E8%8D%89.%E6%84%9C%E6%84%8F%E5%B0%8F%E6%86%A9.%E7%BA%88%E8%8D%89%E5%95%A4%E9%85%92%E8%8A%B1.%E6%9D%9C%E6%9D%BE.%E5%B1%B1%E9%87%91%E8%BB%8A.%E7%BE%8E%E5%A5%BD%E6%99%82%E5%85%89)-i.2901888.1646210753?position=3");
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException ex) {
+        logger.error(ex.getMessage(), ex);
+      }
+      WebElement primaryBtn = new WebDriverWait(driver, 5L)
+          .until(ExpectedConditions.elementToBeClickable(By.className("btn-solid-primary")));
+      WebElement selectionDiv = new WebDriverWait(driver, 60L)
+          .until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div")));
+      List<WebElement> choiceBtns = selectionDiv.findElements(By.className("product-variation"));
+      Actions hover = new Actions(driver);
+      choiceBtns.forEach(btn -> {
+
+        logger.info("btn : {}", btn.getText());
+        hover.moveToElement(btn).build().perform();
+        WebElement photoDiv = new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div")));
+//      WebElement photoDiv = driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div"));
+        String backgroundImage = photoDiv.getCssValue("background-image");
+        if (StringUtils.isNotBlank(backgroundImage)) {
+          backgroundImage = StringUtils.remove(backgroundImage, "url(\"");
+          backgroundImage = StringUtils.remove(backgroundImage, "\")");
+          logger.info("contain backgroundImage:{}", backgroundImage);
+        } else {
+          logger.warn("Miss backgroundImage");
+        }
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+          logger.error(ex.getMessage(), ex);
+        }
+//        if (StringUtils.contains(btn.getAttribute("class"), "product-variation--disabled")) {
+//        } else {
+//          List<WebElement> ticks = btn.findElements(By.className("product-variation__tick"));
+//          if (ticks.size() == 0) {
+//            btn.click();
+//          }
+//          WebElement tickDiv = new WebDriverWait(driver, 3L).until(ExpectedConditions.presenceOfElementLocated(By.className("product-variation__tick")));
+//        }
+
+      });
+    } catch (Exception ex) {
+      logger.error(ex.getMessage(), ex);
+    } finally {
+      driver.close();
+      driver.quit();
+    }
 
   }
 
