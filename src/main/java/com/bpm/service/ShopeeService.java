@@ -4,5 +4,5 @@ public interface ShopeeService {
 
   void getBanbiSite();
 
-  void loadFileToLocal();
+  void tidyData();
 }

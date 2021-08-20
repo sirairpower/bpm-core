@@ -11,7 +11,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import lombok.Data;
-import lombok.ToString;
+import lombok.ToString.Exclude;
 import lombok.experimental.Accessors;
 
 @Data
@@ -37,12 +37,14 @@ public class ShopeeVariantProd implements Serializable {
   private Integer variantUnit;
 
   @Column(name = "description")
-  private String desc;
+  private String description;
 
   @Column(name = "sold_out")
   private Boolean soldOut;
+  @Column(name = "variant_img")
+  private String variantImg;
 
-  @ToString.Exclude
+  @Exclude
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "product_info_id")
   private ShopeeProductInfo shopeeProductInfo;

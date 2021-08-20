@@ -64,11 +64,11 @@ asciidoctor {
 }
 
 war {
-    archiveName 'yb.war'
+    archiveName 'bpm.war'
 }
 
 bootWar {
-    archiveName 'yb.war'
+    archiveName 'bpm.war'
     println "war name : " + war.archivePath
     println tomcatHome
     doLast {

@@ -48,7 +48,7 @@ class ShopeeProductInfoRepositoryTest {
 
     ShopeeVariantProd variantProd = new ShopeeVariantProd();
     variantProd.setPrice(5);
-    variantProd.setDesc("test description");
+    variantProd.setDescription("test description");
     variantProd.setSoldOut(false);
     variantProd.setShopeeProductInfo(productInfo);
     List<ShopeeVariantProd> variantProdList = new ArrayList<>();

@@ -23,6 +23,7 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -58,8 +59,13 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
   }
 
   @Override
-  public void loadFileToLocal() {
+  public void tidyData() {
+    productInfoRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).forEach(prod -> {
+      String tidySubject = prod.getSubject();
+      logger.debug("id , subject :{}", prod.getId(), tidySubject);
 
+
+    });
   }
 
   private Map<String, Set<ShopeeProductInfo>> getAllCategoryProdInfo(WebDriver driver) {
@@ -196,7 +202,10 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
   private String getBackgroundImgOfLeftSide(WebDriver driver, WebElement ph) {
     WebElement photoDiv = new WebDriverWait(driver, 10).until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[1]/div/div[2]/div")));
-    String backgroundImage = photoDiv.getCssValue("background-image");
+    String backgroundImage = "";
+    if (waitForJSandJQueryToLoad(driver)) {
+      backgroundImage = photoDiv.getCssValue("background-image");
+    }
     if (StringUtils.isNotBlank(backgroundImage)) {
       backgroundImage = StringUtils.remove(backgroundImage, "url(\"");
       backgroundImage = StringUtils.remove(backgroundImage, "\")");
@@ -219,10 +228,11 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
         hover.moveToElement(btn).build().perform();
         String backgroundImage = getBackgroundImgOfLeftSide(driver, btn);
         if (StringUtils.isNotBlank(backgroundImage)) {
-          //TODO
+          prodImgs.removeIf(img -> StringUtils.equals(img, backgroundImage));
+          variantProd.setVariantImg(backgroundImage);
         }
         if (StringUtils.contains(btn.getAttribute("class"), "product-variation--disabled")) {
-          variantProd.setDesc(btn.getText());
+          variantProd.setDescription(btn.getText());
         } else {
           List<WebElement> ticks = btn.findElements(By.className("product-variation__tick"));
           if (ticks.size() == 0) {
@@ -230,9 +240,9 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
           }
           WebElement tickDiv = new WebDriverWait(driver, 3L).until(ExpectedConditions.presenceOfElementLocated(By.className("product-variation__tick")));
           variantProd.setPrice(getPrice(driver));
-          variantProd.setDesc(btn.getText());
+          variantProd.setDescription(btn.getText());
         }
-        logger.debug("price:{},desc:{}", variantProd.getPrice(), variantProd.getDesc());
+        logger.debug("price:{},desc:{}", variantProd.getPrice(), variantProd.getDescription());
         variantProd.setShopeeProductInfo(productInfo);
         addOneVariantProd(productInfo, variantProd);
       });
@@ -247,7 +257,8 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
   private int getPrice(WebDriver driver) {
     String priceText = driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div/div[3]/div/div/div/div/div/div")).getText();
-    priceText = org.springframework.util.StringUtils.delete(priceText, "$");
+    priceText = StringUtils.remove(priceText, "$");
+    priceText = StringUtils.remove(priceText, ",");
     return NumberUtils.toInt(priceText, 0);
   }
 

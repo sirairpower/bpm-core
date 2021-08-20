@@ -1,5 +1,6 @@
 package com.bpm.service;
 
+import com.bpm.dao.ShopeeProductInfoRepository;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -9,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @ExtendWith(SpringExtension.class)
@@ -19,6 +21,21 @@ class ShopeeServiceImplTest {
 
   @Autowired
   private DownloadService downloadService;
+  @Autowired
+  private ShopeeProductInfoRepository productInfoRepository;
+
+  @Test
+  void tidyDataTest() {
+    productInfoRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).forEach(prod -> {
+      String tidySubject = prod.getSubject();
+      logger.debug("id , subject :{}", prod.getId(), tidySubject);
+      //remove more than one line
+      //split by space
+      //remove wording ("≡條紋斑比≡")
+      // digit , digit+unit , unit , digit+unit/digit+unit
+
+    });
+  }
 
   @Test
   void getContentType() throws IOException {
