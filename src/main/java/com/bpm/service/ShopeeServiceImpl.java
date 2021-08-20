@@ -176,7 +176,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
     productInfo.setImgLinks(StringUtils.join(prodImgs, ","));
 //    productInfo.setInventoryQuantity();
     final String desc = driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[3]/div[2]/div[1]/div[1]/div[2]/div[2]/div/span")).getText();
-    productInfo.setDesc(desc);
+    productInfo.setDescription(desc);
     productInfo.setCreateDate(now);
     productInfo.setCreateUser(user);
     logger.debug("\nproductInfo:\n{}", productInfo);

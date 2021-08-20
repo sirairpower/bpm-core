@@ -83,7 +83,6 @@
 
   <logger name="org.hibernate" level="INFO">
     <appender-ref ref="hibernateLog"/>
-
   </logger>
 
   <root level="info">

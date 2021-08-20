@@ -13,7 +13,8 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.EqualsAndHashCode.Include;
+import lombok.ToString.Exclude;
 import lombok.experimental.Accessors;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
@@ -33,9 +34,15 @@ public class ShopeeProductInfo implements Serializable {
   @Column(name = "category_name", nullable = false)
   private String categoryName;
 
-  @EqualsAndHashCode.Include
+  @Include
   @Column(name = "subject", nullable = false)
   private String subject;
+
+  @Column(name = "subject_pristine", nullable = false)
+  private String subjectPristine;
+  
+  @Column(name = "subject_removed_word", nullable = false)
+  private String subjectRemovedWord;
 
   @Column(name = "link", nullable = false)
   private String link;
@@ -50,7 +57,7 @@ public class ShopeeProductInfo implements Serializable {
   private Integer inventoryQuantity;
 
   @Column(name = "description")
-  private String desc;
+  private String description;
 
   @Column(name = "create_user", nullable = false)
   private String createUser;
@@ -64,7 +71,7 @@ public class ShopeeProductInfo implements Serializable {
   @Column(name = "update_date")
   private Date updateDate;
 
-  @ToString.Exclude
+  @Exclude
   @OneToMany(cascade = CascadeType.ALL, mappedBy = "shopeeProductInfo")
   private List<ShopeeVariantProd> shopeeVariantProds;
 

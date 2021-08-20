@@ -42,7 +42,7 @@ class ShopeeProductInfoRepositoryTest {
     productInfo.setLink("test link");
     productInfo.setVariantProdTrue(false);
     productInfo.setImgLinks("test img link,link1,");
-    productInfo.setDesc("test test desc desc");
+    productInfo.setDescription("test test desc desc");
     productInfo.setCreateUser("Howard");
     productInfo.setCreateDate(new Date());
 

@@ -1,9 +1,18 @@
 package com.bpm.service;
 
 import com.bpm.dao.ShopeeProductInfoRepository;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -26,15 +35,47 @@ class ShopeeServiceImplTest {
 
   @Test
   void tidyDataTest() {
+    List<String> extractREGEXs = Arrays.asList("(（(.*?)）)", "(\\((.*?)\\))", "(【(.*?)】)", "(★(.*?)★)", "(≡(.*?)≡)", "(<<(.*?)>>)", "(\\d+ml)", "(\\d+g)");
     productInfoRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).forEach(prod -> {
-      String tidySubject = prod.getSubject();
-      logger.debug("id , subject :{}", prod.getId(), tidySubject);
+      String subjectPristine = prod.getSubjectPristine();
+      logger.debug("id , subject :{},{}", prod.getId(), subjectPristine);
       //remove more than one line
-      //split by space
-      //remove wording ("≡條紋斑比≡")
+      try (BufferedReader br = new BufferedReader(new StringReader(subjectPristine))) {
+        subjectPristine = br.readLine();
+        logger.debug("after remove line more than 1.");
+        logger.debug("{}", subjectPristine);
+      } catch (IOException e) {
+        logger.error(e.getMessage(), e);
+      }
+      //split by space,(xxx),【xxx】,≡xxx≡,<<xxx>>,"-","/","、"
+      for (String ex : extractREGEXs) {
+        subjectPristine = extractBy(ex, subjectPristine)[0];
+        logger.debug("extract subject : {}", subjectPristine);
+      }
       // digit , digit+unit , unit , digit+unit/digit+unit
 
+      List<String> result = Arrays.asList(subjectPristine.split("[\\s/\\-、]")).stream().filter(s -> (StringUtils.isNotBlank(s))).collect(Collectors.toList());
+      logger.debug("subject result : {}", String.join(" ", result));
+
     });
+  }
+
+  private String[] extractBy(String regex, String target) {
+    String[] result = new String[2];
+    final Pattern p = Pattern.compile(regex);
+    Matcher matcher = p.matcher(target);
+    List<String> whichFounded = new ArrayList<>();
+    while (matcher.find()) {
+      whichFounded.add(matcher.group(1));
+      logger.debug("found : " + matcher.group(1));
+      target = StringUtils.remove(target, matcher.group(1));
+    }
+    result[0] = target;
+    if (whichFounded.size() > 0) {
+      result[1] = String.join(",", whichFounded);
+      logger.debug("removed : " + result[1]);
+    }
+    return result;
   }
 
   @Test
