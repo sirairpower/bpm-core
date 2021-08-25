@@ -3,18 +3,26 @@ package com.bpm.service;
 import com.bpm.dao.ShopeeProductInfoRepository;
 import com.bpm.model.ShopeeProductInfo;
 import com.bpm.model.ShopeeVariantProd;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -34,6 +42,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
   private Map<String, ShopeeProductInfo> allProds;
   private Date now;
   private String user;
+  private static final List<String> EXTRACT_REGEXS = Arrays.asList("(（(.*?)）)", "(\\((.*?)\\))", "(【(.*?)】)", "(★(.*?)★)", "(≡(.*?)≡)", "(<<(.*?)>>)", "(\\d+ml)", "(\\d+g)");
 
   @Autowired
   private ShopeeProductInfoRepository productInfoRepository;
@@ -60,12 +69,136 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
   @Override
   public void tidyData() {
-    productInfoRepository.findAll(Sort.by(Sort.Direction.ASC, "id")).forEach(prod -> {
-      String tidySubject = prod.getSubject();
-      logger.debug("id , subject :{}", prod.getId(), tidySubject);
+    List<ShopeeProductInfo> productInfos = productInfoRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+    productInfos.forEach(prod -> {
+      String subjectPristine = prod.getSubjectPristine();
+      logger.debug("id , subject :{},{}", prod.getId(), subjectPristine);
+      //remove more than one line
+      try (BufferedReader br = new BufferedReader(new StringReader(subjectPristine))) {
+        subjectPristine = br.readLine();
+        logger.debug("after remove line more than 1.");
+        logger.debug("{}", subjectPristine);
+      } catch (IOException e) {
+        logger.error(e.getMessage(), e);
+      }
+      //split by space,(xxx),【xxx】,≡xxx≡,<<xxx>>,"-","/","、"
+      for (String ex : EXTRACT_REGEXS) {
+        final String[] result = extractBy(ex, subjectPristine);
+        if (StringUtils.isNotBlank(result[1])) {
+          subjectPristine = result[0];
+          logger.debug("extract subject : {}", subjectPristine);
+          prod.setSubjectRemovedWord(prod.getSubjectRemovedWord() + "," + result[1]);
+        }
+      }
 
+      final List<String> result = Arrays.asList(subjectPristine.split("[\\s/\\-、]")).stream().filter(s -> (StringUtils.isNotBlank(s))).collect(Collectors.toList());
+      prod.setSubject(String.join(" ", result));
+      logger.info("subject result : {}", prod.getSubject());
+      logger.info("removed of subject pristine:{}", prod.getSubjectRemovedWord());
 
     });
+    productInfoRepository.saveAll(productInfos);
+  }
+
+  @Override
+  public void fixImgs() {
+    WebDriver driver = new ChromeDriver();
+    driver.manage().window().maximize();
+    driver.manage().window().setSize(new Dimension(1024, 768));
+    try {
+      logger.info("fixImgs start.");
+      List<ShopeeProductInfo> prods = productInfoRepository.fetchAllWithVariantion();
+      prods.forEach(prod -> {
+        //prod imgs
+        AtomicBoolean doSave = new AtomicBoolean(false);
+        if (StringUtils.contains(prod.getImgLinks(), "none")) {
+          logger.debug("prod_{} contain none, fix it ~", prod.getId());
+          try {
+            toPage(driver, prod.getLink(), prod.getId());
+            prod.setImgLinks(StringUtils.join(getProdImgs(driver), ","));
+            doSave.set(true);
+          } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+          }
+        }
+        //variant img
+        prod.getShopeeVariantProds().forEach(vp -> {
+          if (StringUtils.equals(vp.getVariantImg(), "none")) {
+            logger.debug("vari_{} contain none, fix it ~", vp.getId());
+            try {
+              toPage(driver, prod.getLink(), vp.getId());
+              WebElement selectionDiv = new WebDriverWait(driver, 60L)
+                  .until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div")));
+              Actions hover = new Actions(driver);
+              List<WebElement> choiceBtns = selectionDiv.findElements(By.className("product-variation"));
+              choiceBtns.forEach(btn -> {
+                if (StringUtils.equals(btn.getText(), vp.getDescription())) {
+                  String backgroundImage = "";
+                  int doItCount = 0;
+                  do {
+                    hover.moveToElement(btn).build().perform();
+                    waitForJSandJQueryToLoad(driver);
+                    callThreadSleep(500);
+                    backgroundImage = getBackgroundImgOfLeftSide(driver, btn);
+                    vp.setVariantImg(backgroundImage);
+                    logger.debug("backgroundImage url : {}", vp.getVariantImg());
+                    doItCount++;
+                  } while (StringUtils.isBlank(backgroundImage) && doItCount < 10);
+
+                }
+              });
+              doSave.set(true);
+            } catch (Exception e) {
+              logger.error(e.getMessage(), e);
+            }
+          }
+        });
+        if (doSave.get()) {
+          productInfoRepository.saveAndFlush(prod);
+        }
+      });
+
+      logger.info("fixImgs completed well ~");
+    } catch (Exception e) {
+      logger.error(e.getMessage(), e);
+    } finally {
+      driver.quit();
+    }
+  }
+
+  private void toPage(WebDriver driver, String prodLink, Integer id) {
+    if (!StringUtils.equals(driver.getCurrentUrl(), prodLink)) {
+      driver.get(prodLink);
+      logger.debug("id_{} into page and wait to it ready.", id);
+      WebElement primaryBtn = new WebDriverWait(driver, 5L)
+          .until(ExpectedConditions.elementToBeClickable(By.className("btn-solid-primary")));
+      WebElement selectionDiv = new WebDriverWait(driver, 60L)
+          .until(ExpectedConditions.presenceOfElementLocated(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div")));
+      logger.debug("page seems to be ready ");
+    }
+  }
+
+  /**
+   * @param regex
+   * @param target
+   * @return [0]:result of extracted , [1]:extracted word
+   */
+  private String[] extractBy(String regex, String target) {
+    final String[] result = {"", ""};
+    final Pattern p = Pattern.compile(regex);
+    Matcher matcher = p.matcher(target);
+    final List<String> whichFounded = new ArrayList<>();
+    while (matcher.find()) {
+      whichFounded.add(matcher.group(1));
+      logger.debug("found : " + matcher.group(1));
+      target = StringUtils.remove(target, matcher.group(1));
+    }
+    result[0] = target;
+    if (whichFounded.size() > 0) {
+      result[1] = String.join(",", whichFounded);
+      logger.debug("removed : " + result[1]);
+    }
+    return result;
   }
 
   private Map<String, Set<ShopeeProductInfo>> getAllCategoryProdInfo(WebDriver driver) {
@@ -171,7 +304,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
 
     //final String subject = StringUtils.trim(driver.findElement(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[3]/div/div[1]/span")).getText());
     productInfo.setSubject(subject);
-    List<String> prodImgs = getProdImgs(driver, productInfo);
+    List<String> prodImgs = getProdImgs(driver);
     makeVariantOfProd(driver, productInfo, selectionDiv, prodImgs);
     productInfo.setImgLinks(StringUtils.join(prodImgs, ","));
 //    productInfo.setInventoryQuantity();
@@ -186,18 +319,27 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
     return productInfo;
   }
 
-  private List<String> getProdImgs(WebDriver driver, ShopeeProductInfo productInfo) {
+  private List<String> getProdImgs(WebDriver driver) {
     List<WebElement> miniPhotosDiv = driver.findElements(By.xpath("/html/body/div[1]/div/div[2]/div[2]/div[2]/div[2]/div[2]/div[1]/div[2]/div"));
+    logger.debug("img div size : {}", miniPhotosDiv.size());
     Actions builder = new Actions(driver);
-    List<String> imgs = new ArrayList<>();
-    miniPhotosDiv.forEach(ph -> {
-      builder.moveToElement(ph).perform();
-      String backgroundImage = getBackgroundImgOfLeftSide(driver, ph);
-      if (StringUtils.isNotBlank(backgroundImage)) {
-        imgs.add(backgroundImage);
-      }
-    });
-    return imgs;
+    Set<String> imgs = new HashSet<>();
+    int doItCount = 0;
+    do {
+      //This div will inference by screen size. If not appeared in screen the div won't move to next div.
+      miniPhotosDiv.forEach(ph -> {
+        builder.moveToElement(ph).perform();
+        waitForJSandJQueryToLoad(driver);
+        callThreadSleep(500);
+        String backgroundImage = getBackgroundImgOfLeftSide(driver, ph);
+        if (StringUtils.isNotBlank(backgroundImage)) {
+          imgs.add(backgroundImage);
+        }
+      });
+      doItCount++;
+      logger.debug("get set size:{}", imgs.size());
+    } while ((miniPhotosDiv.size() != imgs.size() && doItCount < 20));
+    return imgs.stream().collect(Collectors.toList());
   }
 
   private String getBackgroundImgOfLeftSide(WebDriver driver, WebElement ph) {
@@ -216,9 +358,7 @@ public class ShopeeServiceImpl extends BaseService implements ShopeeService {
   }
 
   private void makeVariantOfProd(WebDriver driver, ShopeeProductInfo productInfo, WebElement selectionDiv, List<String> prodImgs) {
-    WebElement choiceArea = null;
     List<WebElement> choiceBtns = selectionDiv.findElements(By.className("product-variation"));
-
     logger.info("choiceBtns.size:{}", choiceBtns.size());
     if (choiceBtns.size() > 1) {
       productInfo.setVariantProdTrue(true);

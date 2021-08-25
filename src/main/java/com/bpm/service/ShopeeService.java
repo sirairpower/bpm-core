@@ -5,4 +5,7 @@ public interface ShopeeService {
   void getBanbiSite();
 
   void tidyData();
+
+  void fixImgs();
+
 }

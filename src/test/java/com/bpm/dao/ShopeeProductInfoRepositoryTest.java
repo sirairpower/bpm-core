@@ -31,6 +31,18 @@ class ShopeeProductInfoRepositoryTest {
   @BeforeEach
   void setUp() {
   }
+  
+  @Test
+  void fetchAllWithVariantion() {
+    shopeeProductInfoRepository.fetchAllWithVariantion().forEach(prod -> {
+      logger.debug("prod id:{}", prod.getId());
+      if (prod.getVariantProdTrue()) {
+        prod.getShopeeVariantProds().forEach(pv -> {
+          logger.debug("variant id:{}", pv.getId());
+        });
+      }
+    });
+  }
 
   @Test
 //  @Rollback

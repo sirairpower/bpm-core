@@ -1,9 +1,11 @@
 package com.bpm.service;
 
 import com.bpm.dao.ShopeeProductInfoRepository;
+import com.bpm.model.ShopeeProductInfo;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,8 +25,12 @@ public class DownloadServiceImpl implements DownloadService {
   @Autowired
   private ShopeeProductInfoRepository shopeeProductInfoRepository;
 
+
   @Value("${files.storage.path}")
   private String fileStoragePath;
+
+  @Value("${files.task.name}")
+  private String filesTaskName;
 
   @Value("${java.io.tmpdir}")
   private String tmpdir;
@@ -32,31 +38,51 @@ public class DownloadServiceImpl implements DownloadService {
 
   @Override
   public void loadFileToLocal() {
-    shopeeProductInfoRepository.findAll().forEach(pi -> {
-      logger.debug("\nsub :{}", pi.getSubject());
-      if (StringUtils.isNotBlank(pi.getImgLinks())) {
-        try {
-          File tmpdirProd = new File(tmpdir, pi.getId().toString());
-          logger.debug("tmpdirProd :{}", tmpdirProd.getAbsolutePath());
-          FileUtils.forceMkdir(tmpdirProd);
-          List<String> imgList = Arrays.asList(StringUtils.split(pi.getImgLinks(), ","));
+    try {
+      File tmpdirProd = new File(tmpdir + filesTaskName);
+      logger.debug("tmpdirProd :{}", tmpdirProd.getAbsolutePath());
+      FileUtils.forceMkdir(tmpdirProd);
+      File realProd = new File(fileStoragePath + filesTaskName);
+      logger.debug("realProd :{}", realProd.getAbsolutePath());
+      FileUtils.forceMkdir(realProd);
+      List<ShopeeProductInfo> prods = shopeeProductInfoRepository.fetchAllWithVariantion();
+      prods.forEach(prod -> {
+        //get product img
+        if (StringUtils.isNotBlank(prod.getImgLinks())) {
+          List<String> prodImgsOfShopee = Arrays.asList(StringUtils.split(prod.getImgLinks(), ","));
+          List<String> prodImgs = new ArrayList<>();
           AtomicInteger imgCounter = new AtomicInteger(0);
-          imgList.forEach(img -> {
-            logger.debug("img : {}", img);
+          logger.debug("\nsub :{}", prod.getSubject());
+          prodImgsOfShopee.forEach(img -> {
+            logger.debug("p-img : {}", img);
             try {
-              String imgName = String.valueOf(imgCounter.getAndAdd(1)).concat(".jpg");
+              String imgName = "p" + prod.getId() + "_" + String.valueOf(imgCounter.getAndAdd(1)).concat(".jpg");
               FileUtils.copyURLToFile(new URL(img), new File(tmpdirProd.getAbsolutePath(), imgName), 3000, 3000);
+              prodImgs.add(imgName);
             } catch (IOException e) {
-              logger.error("", e);
+              logger.error(e.getMessage(), e);
             }
           });
-          File realProd = new File(fileStoragePath, pi.getId().toString());
-          FileUtils.forceMkdir(realProd);
-          FileUtils.copyDirectory(tmpdirProd, realProd);
-        } catch (IOException e) {
-          logger.error("", e);
+          prod.setImgLinks(String.join(",", prodImgs));
         }
-      }
-    });
+        //get variant product img
+        prod.getShopeeVariantProds().forEach(vp -> {
+          if (StringUtils.isNotBlank(vp.getVariantImg())) {
+            try {
+              String vImgName = "v" + vp.getId() + ".jpg";
+              FileUtils.copyURLToFile(new URL(vp.getVariantImg()), new File(tmpdirProd.getAbsolutePath(), vImgName), 3000, 3000);
+              vp.setVariantImg(vImgName);
+            } catch (IOException e) {
+              logger.error(e.getMessage(), e);
+            }
+          }
+        });
+      });
+      shopeeProductInfoRepository.saveAll(prods);
+
+      FileUtils.copyDirectory(tmpdirProd, realProd);
+    } catch (IOException e) {
+      logger.error("", e);
+    }
   }
 }
