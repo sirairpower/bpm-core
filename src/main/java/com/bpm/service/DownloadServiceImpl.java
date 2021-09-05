@@ -85,4 +85,11 @@ public class DownloadServiceImpl implements DownloadService {
       logger.error("", e);
     }
   }
+
+  @Override
+  public String getFilePathAbsolute(String fileName) {
+    File file = new File(fileStoragePath + filesTaskName + File.separator + fileName);
+    return file.isFile() ? file.getAbsolutePath() : "";
+  }
+  
 }
